@@ -28,19 +28,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        showToast("Pause");
+        showToast("the program has been paused.");
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        showToast("the program had Stop");
+        showToast("the program had Stop.");
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        showToast("the program had Destroy");
+        showToast("exiting the program.");
     }
 
     // Helper method to display Toast messages
