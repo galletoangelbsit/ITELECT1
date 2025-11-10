@@ -1,0 +1,132 @@
+Code Exer#2:
+XML
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    
+    <TextView
+        android:id="@+id/tvInstructions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="@string/enter_your_name_and_select_your_country"
+        android:textSize="18sp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="40dp"/>
+
+    
+    <EditText
+        android:id="@+id/etName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:autofillHints=""
+        android:hint="@string/enter_your_name"
+        android:inputType="textPersonName"
+        app:layout_constraintTop_toBottomOf="@id/tvInstructions"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="20dp" />
+
+    
+    <AutoCompleteTextView
+        android:id="@+id/autoCompleteCountry"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/type_your_country"
+        android:completionThreshold="1"
+        app:layout_constraintTop_toBottomOf="@id/etName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="20dp" />
+
+    
+    <Spinner
+        android:id="@+id/spinnerOptions"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/autoCompleteCountry"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="20dp" />
+    
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+_______________________________________________________________________________________________________________________
+
+Androidmanifest.xml
+MANIFEST.XML
+
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MAINACTIVITY">
+        <activity android:name=".MainActivity"
+        android:exported="true">
+     <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+     </intent-filter>
+    </activity>
+    </application>
+
+</manifest> 
+______________________________________________________________________________________________________________________
+
+MainActivity.kt 
+
+KOTLIN
+package com.example.mainactivity
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.Spinner
+import android.widget.Toast
+
+class MainActivity : AppCompatActivity() {
+        override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        
+        val countries = arrayOf("Philippines", "Japan", "USA", "Canada", "Germany", "France")
+        val autoCountry = findViewById<AutoCompleteTextView>(R.id.autoCompleteCountry)
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, countries)
+        autoCountry.setAdapter(adapter)
+
+        
+        val spinner = findViewById<Spinner>(R.id.spinnerOptions)
+        val options = arrayOf("Philippines", "Japan", "USA", "Canada", "Germany","France" )
+        val spinnerAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, options)
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdownitem)
+        spinner.adapter = spinnerAdapter
+
+        
+        autoCountry.setOnItemClickListener { parent, , position, _ ->
+        val selected = parent.getItemAtPosition(position).toString()
+        Toast.makeText(this, "You selected: $selected", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+
+
