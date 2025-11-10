@@ -1,0 +1,95 @@
+Code for Exer#5
+
+XML
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    
+    <ImageView
+        android:id="@+id/staticImage"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:src="@drawable/image1"
+        android:contentDescription="Static image"
+        android:layout_marginBottom="16dp" />
+
+    
+    <ImageSwitcher
+        android:id="@+id/imageSwitcher"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_marginBottom="16dp" />
+
+    
+    <Button
+        android:id="@+id/btnSwitchImage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Switch Image" />
+
+</LinearLayout>
+
+__________________________________________________________________________________
+Code For Exer#5
+
+Java
+
+package com.example.myandroid; 
+
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageSwitcher;
+import android.widget.ImageView;
+import android.widget.ViewSwitcher;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    //image switcher
+    private ImageSwitcher imageSwitcher;
+
+    // two images here image1 and image2
+    private int[] images = {R.drawable.image1, R.drawable.image2};
+    private int currentImageIndex = 0;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        imageSwitcher = findViewById(R.id.imageSwitcher);
+        Button btnSwitch = findViewById(R.id.btnSwitchImage);
+
+        
+        imageSwitcher.setFactory(new ViewSwitcher.ViewFactory() {
+            @Override
+            public View makeView() {
+                ImageView imageView = new ImageView(MainActivity.this);
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                imageView.setLayoutParams(new ImageSwitcher.LayoutParams(
+                        ImageSwitcher.LayoutParams.MATCH_PARENT,
+                        ImageSwitcher.LayoutParams.MATCH_PARENT
+                ));
+                return imageView;
+            }
+        });
+
+        
+        imageSwitcher.setImageResource(images[currentImageIndex]);
+
+        
+        btnSwitch.setOnClickListener(v -> {
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            imageSwitcher.setImageResource(images[currentImageIndex]);
+        });
+    }
+} 
