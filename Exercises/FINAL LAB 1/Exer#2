@@ -8,6 +8,7 @@ Code For Exer#2
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+
 <TextView
         android:layout_margin="16dp"
         android:textSize="20sp"
