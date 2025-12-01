@@ -1,0 +1,950 @@
+iDiary APP WHOLE CODE JAVA FUNCTION
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Home.Java (home function)
+
+package com.ag.idiary;
+
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.ArrayList;
+
+public class Home extends AppCompatActivity {
+
+    private TextView greetingText;
+    private Button addNoteBtn;
+    private RecyclerView recyclerView;
+    private NotesAdapter notesAdapter;
+    private ArrayList<Note> notesList;
+    private NoteDatabaseHelper dbHelper;
+    private String currentUsername;
+
+    private final ActivityResultLauncher<Intent> writingAreaLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> loadNotes()
+            );
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.home);
+
+        greetingText = findViewById(R.id.greetingText);
+        addNoteBtn = findViewById(R.id.addNoteBtn);
+        recyclerView = findViewById(R.id.recyclerView);
+
+        dbHelper = new NoteDatabaseHelper(this);
+        notesList = new ArrayList<>();
+        notesAdapter = new NotesAdapter(this, notesList);
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(notesAdapter);
+
+        // LOAD USERNAME from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("iDiaryPrefs", MODE_PRIVATE);
+        currentUsername = prefs.getString("username", null);
+
+        if (currentUsername == null) {
+            promptUsername(prefs);
+        } else {
+            displayGreeting(currentUsername);
+        }
+
+        addNoteBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(Home.this, WritingAreaActivity.class);
+            intent.putExtra("username", currentUsername);
+            writingAreaLauncher.launch(intent);
+        });
+
+        // LONG PRESS TO DELETE NOTE FUNCTION
+        notesAdapter.setOnNoteLongClickListener(noteId -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Delete Note")
+                    .setMessage("Are you sure you want to delete this note?")
+                    .setPositiveButton("Yes", (dialog, which) -> {
+                        boolean deleted = dbHelper.deleteNote(noteId);
+                        if (deleted) {
+                            Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show();
+                            loadNotes();
+                        } else {
+                            Toast.makeText(this, "Delete failed", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
+        // TO CLICK AND EDIT AND VIEW NOTE FUNCTION
+        notesAdapter.setOnItemClickListener(note -> {
+            Intent intent = new Intent(Home.this, WritingAreaActivity.class);
+            intent.putExtra("note_id", note.getId());
+            intent.putExtra("note_text", note.getText());
+            intent.putExtra("note_color", note.getColor());
+            intent.putExtra("username", currentUsername);
+            writingAreaLauncher.launch(intent);
+        });
+
+        loadNotes();
+    }
+
+    private void promptUsername(SharedPreferences prefs) {
+        EditText input = new EditText(this);
+        input.setHint("Enter your name");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Welcome to iDiary!")
+                .setMessage("Please enter your name:")
+                .setView(input)
+                .setCancelable(false)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String username = input.getText().toString().trim();
+                    if (!username.isEmpty()) {
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.putString("username", username);
+                        editor.apply();
+
+                        currentUsername = username;
+                        displayGreeting(username);
+                        loadNotes();
+                    } else {
+                        Toast.makeText(this, "Name cannot be empty", Toast.LENGTH_SHORT).show();
+                        promptUsername(prefs);
+                    }
+                })
+                .show();
+    }
+
+    
+    //GREETINGS
+    private void displayGreeting(String username) {
+        greetingText.setText("Greetings, " + username + "!");
+    }
+
+    private void loadNotes() {
+        notesList.clear();
+        Cursor cursor = dbHelper.getNotesByUser(currentUsername);
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                String text = cursor.getString(cursor.getColumnIndexOrThrow("text"));
+                int color = cursor.getInt(cursor.getColumnIndexOrThrow("color"));
+                notesList.add(new Note(id, text, color));
+            }
+            cursor.close();
+        }
+        notesAdapter.notifyDataSetChanged();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SignUp.Java (sign in function)
+
+package com.ag.idiary;
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class SignUp extends AppCompatActivity {
+
+    //DECLARATION OF COMPONENTS
+    EditText usernameInput, emailInput, passwordInput;
+    Button signInBtn, backBtn;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.sign_in);
+        // Replace with your XML file name (example: activity_sign_in)
+
+        // EDIT TEXTS FOR USERNAME,EMAIL AND PASSWORD SIGN IN
+        usernameInput = findViewById(R.id.editTextText);
+        emailInput = findViewById(R.id.editTextText2);
+        passwordInput = findViewById(R.id.editTextText5);
+
+        signInBtn = findViewById(R.id.button3);
+        backBtn = findViewById(R.id.button2);
+
+        // Sign In BUTTON ACTION
+        signInBtn.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+
+                String username = usernameInput.getText().toString().trim();
+                String email = emailInput.getText().toString().trim();
+                String password = passwordInput.getText().toString().trim();
+
+                if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                    Toast.makeText(SignUp.this, "Please fill it all up", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(SignUp.this, "Sign In Successful!", Toast.LENGTH_SHORT).show();
+
+                    // Example: Go to another activity after login
+                    // Intent intent = new Intent(SignInActivity.this, HomeActivity.class);
+                    // startActivity(intent);
+                }
+            }
+        });
+
+        // BACK BUTTON ACTION
+        backBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish(); // closes this page
+            }
+        });
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Login.java (JAVA function)
+
+package com.ag.idiary;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class Login extends AppCompatActivity {
+
+    EditText emailEditText, passwordEditText;
+    Button loginButton;
+    TextView signUpText;
+
+    private static final String PREFS_NAME = "UserPrefs";
+    private static final String KEY_EMAIL = "email";
+    private static final String KEY_PASSWORD = "password";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.login);
+
+        emailEditText = findViewById(R.id.editTextText3);
+        passwordEditText = findViewById(R.id.editTextText4);
+        loginButton = findViewById(R.id.button);
+        signUpText = findViewById(R.id.textView);
+
+        loginButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loginUser();
+            }
+        });
+
+        signUpText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openSignUpPage();
+            }
+        });
+    }
+
+    private void loginUser() {
+        String email = emailEditText.getText().toString().trim();
+        String password = passwordEditText.getText().toString().trim();
+
+        if (email.isEmpty() || password.isEmpty()) {
+            Toast.makeText(this, "Please enter email and password", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Check SharedPreferences FOR REGISTERED USER
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String registeredEmail = prefs.getString(KEY_EMAIL, "");
+        String registeredPassword = prefs.getString(KEY_PASSWORD, "");
+
+        if (email.equals(registeredEmail) && password.equals(registeredPassword)) {
+            // Save username/email for greeting
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putString("username", email); // or actual username from SignUp
+            editor.apply();
+
+            Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
+
+            // GO TO THE HOME LAYOUT
+            Intent intent = new Intent(Login.this, Home.class);
+            startActivity(intent);
+            finish();
+        } else {
+            Toast.makeText(this, "Invalid email or password. Please register first.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openSignUpPage() {
+        Intent intent = new Intent(Login.this, SignUp.class);
+        startActivity(intent);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+NoteDatabaseHelper.java
+
+package com.ag.idiary;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import java.util.ArrayList;
+
+public class NoteDatabaseHelper extends SQLiteOpenHelper {
+
+    private static final String DATABASE_NAME = "notes_db";
+    private static final int DATABASE_VERSION = 1;
+    private static final String TABLE_NAME = "notes";
+
+    // Columns
+    private static final String COL_ID = "id";
+    private static final String COL_TEXT = "text";
+    private static final String COL_COLOR = "color";
+
+    public NoteDatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        String createTable = "CREATE TABLE " + TABLE_NAME + " (" +
+                COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                COL_TEXT + " TEXT," +
+                COL_COLOR + " INTEGER)";
+        db.execSQL(createTable);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
+        onCreate(db);
+    }
+
+    // Save new note
+    public boolean saveNote(String text, int color) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_TEXT, text);
+        cv.put(COL_COLOR, color);
+        long result = db.insert(TABLE_NAME, null, cv);
+        return result != -1;
+    }
+
+    // Get all notes
+    public Cursor getAllNotes() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM " + TABLE_NAME + " ORDER BY " + COL_ID + " DESC", null);
+    }
+
+    // Delete note by ID
+    public boolean deleteNote(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rows = db.delete(TABLE_NAME, COL_ID + "=?", new String[]{String.valueOf(id)});
+        return rows > 0;
+    }
+
+    // Update note by ID
+    public boolean updateNote(int id, String text, int color) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_TEXT, text);
+        cv.put(COL_COLOR, color);
+        int rows = db.update(TABLE_NAME, cv, COL_ID + "=?", new String[]{String.valueOf(id)});
+        return rows > 0;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+MainActivity.java 
+
+package com.ag.idiary;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
+public class MainActivity extends AppCompatActivity {
+
+    private RecyclerView recyclerView;
+    private Button addNoteBtn, switchAccountBtn, addAccountBtn;
+    private TextView greetingText;
+    private NoteDatabaseHelper dbHelper;
+    private ArrayList<Note> notesList;
+    private NotesAdapter adapter;
+    private String currentUsername;
+
+    private final ActivityResultLauncher<Intent> writingAreaLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.StartActivityForResult(),
+                    result -> loadNotes()
+            );
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.home);
+
+        recyclerView = findViewById(R.id.recyclerView);
+        addNoteBtn = findViewById(R.id.addNoteBtn);
+        greetingText = findViewById(R.id.greetingText);
+
+        dbHelper = new NoteDatabaseHelper(this);
+        notesList = new ArrayList<>();
+        adapter = new NotesAdapter(this, notesList);
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(adapter);
+
+        // LOAD THE CURRENT USERNAME
+        SharedPreferences prefs = getSharedPreferences("iDiaryPrefs", MODE_PRIVATE);
+        currentUsername = prefs.getString("current_username", null);
+
+        if (currentUsername == null) {
+            promptNewAccount(prefs);
+        } else {
+            displayGreeting(currentUsername);
+        }
+
+        // PRESSING ADD NOTE BUTTON THEN IT WILL GO WritingAreaActivity
+        addNoteBtn.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, WritingAreaActivity.class);
+            writingAreaLauncher.launch(intent);
+        });
+
+        // LONG PRESS THEN IT WILL DELETE NOTE
+        adapter.setOnNoteLongClickListener(noteId -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Delete Note")
+                    .setMessage("Are you sure you want to delete this note?")
+                    .setPositiveButton("Yes", (dialog, which) -> {
+                        boolean deleted = dbHelper.deleteNote(noteId);
+                        if (deleted) {
+                            Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show();
+                            loadNotes();
+                        } else {
+                            Toast.makeText(this, "Delete failed", Toast.LENGTH_SHORT).show();
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+
+        // Click → edit/view note
+        adapter.setOnItemClickListener(note -> {
+            Intent intent = new Intent(MainActivity.this, WritingAreaActivity.class);
+            intent.putExtra("note_id", note.getId());
+            intent.putExtra("note_text", note.getText());
+            intent.putExtra("note_color", note.getColor());
+            writingAreaLauncher.launch(intent);
+        });
+
+        // Load notes initially
+        loadNotes();
+
+        
+    }
+
+    // Prompt user to create a new account
+    private void promptNewAccount(SharedPreferences prefs) {
+        androidx.appcompat.widget.AppCompatEditText input = new androidx.appcompat.widget.AppCompatEditText(this);
+        input.setHint("Enter your name");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Create New Account")
+                .setMessage("Please enter your username:")
+                .setView(input)
+                .setCancelable(false)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String username = input.getText().toString().trim();
+                    if (!username.isEmpty()) {
+
+                        // Save to SharedPreferences
+                        Set<String> accounts = prefs.getStringSet("accounts", new HashSet<>());
+                        accounts.add(username);
+                        prefs.edit()
+                                .putStringSet("accounts", accounts)
+                                .putString("current_username", username)
+                                .apply();
+
+                        currentUsername = username;
+                        displayGreeting(username);
+                        loadNotes();
+
+                    } else {
+                        Toast.makeText(this, "Username cannot be empty", Toast.LENGTH_SHORT).show();
+                        promptNewAccount(prefs);
+                    }
+                })
+                .show();
+    }
+
+    // Switch between existing accounts
+    private void switchAccount(SharedPreferences prefs) {
+        Set<String> accounts = prefs.getStringSet("accounts", new HashSet<>());
+        if (accounts.isEmpty()) {
+            Toast.makeText(this, "No other accounts available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String[] accountArray = accounts.toArray(new String[0]);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Switch Account")
+                .setItems(accountArray, (dialog, which) -> {
+                    currentUsername = accountArray[which];
+                    prefs.edit().putString("current_username", currentUsername).apply();
+                    displayGreeting(currentUsername);
+                    loadNotes();
+                })
+                .show();
+    }
+
+    private void displayGreeting(String username) {
+        greetingText.setText("Greetings, " + username + "!");
+    }
+
+    // Load notes only for current user
+    private void loadNotes() {
+        if (currentUsername == null) return;
+
+        notesList.clear();
+        Cursor cursor = dbHelper.getNotesByUser(currentUsername);
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow("id"));
+                String text = cursor.getString(cursor.getColumnIndexOrThrow("text"));
+                int color = cursor.getInt(cursor.getColumnIndexOrThrow("color"));
+                notesList.add(new Note(id, text, color));
+            }
+            cursor.close();
+        }
+        adapter.notifyDataSetChanged();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Note.java
+
+package com.ag.idiary;
+
+public class Note {
+    private int id;
+    private String text;
+    private int color;
+
+    public Note(int id, String text, int color) {
+        this.id = id;
+        this.text = text;
+        this.color = color;
+    }
+
+    public int getId() { return id; }
+    public String getText() { return text; }
+    public int getColor() { return color; }
+}
+
+NoteDatabaseHelper.java
+package com.ag.idiary;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class NoteDatabaseHelper extends SQLiteOpenHelper {
+
+    private static final String DB_NAME = "iDiaryDB";
+    private static final int DB_VERSION = 1;
+
+    private static final String TABLE_NOTES = "notes";
+
+    public NoteDatabaseHelper(Context context) {
+        super(context, DB_NAME, null, DB_VERSION);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        String CREATE_TABLE_NOTES = "CREATE TABLE " + TABLE_NOTES + " (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "text TEXT, " +
+                "color INTEGER, " +
+                "username TEXT)"; // associate notes with user
+        db.execSQL(CREATE_TABLE_NOTES);
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NOTES);
+        onCreate(db);
+    }
+
+    //SAVE NOTE with username
+    public boolean saveNote(String text, int color, String username) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("text", text);
+        cv.put("color", color);
+        cv.put("username", username);
+
+        long result = db.insert(TABLE_NOTES, null, cv);
+        return result != -1;
+    }
+
+    // UPDATE NOTE BY ID
+    public boolean updateNote(int id, String text, int color) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("text", text);
+        cv.put("color", color);
+        int result = db.update(TABLE_NOTES, cv, "id=?", new String[]{String.valueOf(id)});
+        return result > 0;
+    }
+
+    // DELETE NOTE BY ID
+    public boolean deleteNote(int id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int result = db.delete(TABLE_NOTES, "id=?", new String[]{String.valueOf(id)});
+        return result > 0;
+    }
+
+    // Get all notes for a specific user
+    public Cursor getNotesByUser(String username) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM " + TABLE_NOTES + " WHERE username=?", new String[]{username});
+    }
+}
+NoteDetailActivity.java
+package com.ag.idiary;
+
+import android.os.Bundle;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class NoteDetailActivity extends AppCompatActivity {
+
+    public static final String EXTRA_TITLE = "note_title";
+    public static final String EXTRA_CONTENT = "note_content";
+
+    public static void start(Home home, String title, String content) {
+
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState){
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.note_detail);
+
+        TextView titleTextView = findViewById(R.id.noteTitleDetail);
+        TextView contentTextView = findViewById(R.id.noteContentDetail);
+
+        String title = getIntent().getStringExtra(EXTRA_TITLE);
+        String content = getIntent().getStringExtra(EXTRA_CONTENT);
+
+        titleTextView.setText(title);
+        contentTextView.setText(content);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+NotesAdapter
+
+package com.ag.idiary;
+
+import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+import java.util.ArrayList;
+
+public class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHolder> {
+
+    private Context context;
+    private ArrayList<Note> notesList;
+
+    private OnNoteClickListener clickListener;
+    private OnNoteLongClickListener longClickListener;
+
+    // Interfaces
+    public interface OnNoteClickListener {
+        void onNoteClick(Note note);
+    }
+
+    public interface OnNoteLongClickListener {
+        void onNoteLongClick(int noteId);
+    }
+
+    public void setOnItemClickListener(OnNoteClickListener listener) {
+        this.clickListener = listener;
+    }
+
+    public void setOnNoteLongClickListener(OnNoteLongClickListener listener) {
+        this.longClickListener = listener;
+    }
+
+    public NotesAdapter(Context context, ArrayList<Note> notesList) {
+        this.context = context;
+        this.notesList = notesList;
+    }
+
+    @NonNull
+    @Override
+    public NoteViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.note_item, parent, false);
+        return new NoteViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
+        Note note = notesList.get(position);
+        holder.noteText.setText(note.getText());
+        holder.itemView.setBackgroundColor(note.getColor());
+
+        // Set tag for LONG PRESS
+        holder.itemView.setTag(note.getId());
+
+        // Click to VIEW AND EDIT
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onNoteClick(note);
+            }
+        });
+
+        // LONG PRESS TO DELETE
+        holder.itemView.setOnLongClickListener(v -> {
+            if (longClickListener != null) {
+                longClickListener.onNoteLongClick(note.getId());
+                return true;
+            }
+            return false;
+        });
+    }
+
+    @Override
+    public int getItemCount() {
+        return notesList.size();
+    }
+
+    public static class NoteViewHolder extends RecyclerView.ViewHolder {
+        TextView noteText;
+
+        public NoteViewHolder(@NonNull View itemView) {
+            super(itemView);
+            noteText = itemView.findViewById(R.id.noteText);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+SignUp.java
+
+package com.ag.idiary;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class SignUp extends AppCompatActivity {
+
+    EditText usernameInput, emailInput, passwordInput;
+    Button signInBtn, backBtn;
+
+    // SharedPreferences keys
+    private static final String PREFS_NAME = "UserPrefs";
+    private static final String KEY_USERNAME = "username";
+    private static final String KEY_EMAIL = "email";
+    private static final String KEY_PASSWORD = "password";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.sign_in);  // your sign_in.xml layout
+
+        usernameInput = findViewById(R.id.editTextText);
+        emailInput = findViewById(R.id.editTextText2);
+        passwordInput = findViewById(R.id.editTextText5);
+
+        signInBtn = findViewById(R.id.button3);
+        backBtn = findViewById(R.id.button2);
+
+        // SIGN IN BUTTON ACTION
+        signInBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                String username = usernameInput.getText().toString().trim();
+                String email = emailInput.getText().toString().trim();
+                String password = passwordInput.getText().toString().trim();
+
+                if (username.isEmpty()) {
+                    usernameInput.setError("Username is required");
+                    return;
+                }
+                if (email.isEmpty()) {
+                    emailInput.setError("Email is required");
+                    return;
+                }
+                if (password.isEmpty()) {
+                    passwordInput.setError("Password is required");
+                    return;
+                }
+
+                // Save user's USERNAME,EMAIL AND PASSWORD in SharedPreferences
+                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString(KEY_USERNAME, username);
+                editor.putString(KEY_EMAIL, email);
+                editor.putString(KEY_PASSWORD, password);
+                editor.apply();  // commit changes
+
+                Toast.makeText(SignUp.this, "Sign Up Successful!", Toast.LENGTH_SHORT).show();
+
+                // Return to Login screen
+                finish();
+            }
+        });
+
+        // BACK BUTTON ACTION
+        backBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                finish();
+            }
+        });
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+WritingAreaActivity
+
+package com.ag.idiary;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class WritingAreaActivity extends AppCompatActivity {
+
+    private Button backButton, saveButton, changeColorButton;
+    private EditText noteEditText;
+    private NoteDatabaseHelper dbHelper;
+    private int selectedColor = Color.WHITE;
+    private int noteId = -1; // DEFAULT FOR NEW NOTE
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.writing_area);
+
+        backButton = findViewById(R.id.backButton);
+        saveButton = findViewById(R.id.saveButton);
+        changeColorButton = findViewById(R.id.changeColorButton);
+        noteEditText = findViewById(R.id.noteEditText);
+
+        dbHelper = new NoteDatabaseHelper(this);
+
+        // Load current username
+        SharedPreferences prefs = getSharedPreferences("iDiaryPrefs", MODE_PRIVATE);
+        String username = prefs.getString("username", "User");
+
+        // Check if editing an existing note
+        if (getIntent() != null) {
+            noteId = getIntent().getIntExtra("note_id", -1);
+            String noteText = getIntent().getStringExtra("note_text");
+            selectedColor = getIntent().getIntExtra("note_color", Color.WHITE);
+
+            if (noteText != null) noteEditText.setText(noteText);
+            noteEditText.setBackgroundColor(selectedColor);
+        }
+
+        backButton.setOnClickListener(v -> finish());
+
+        saveButton.setOnClickListener(v -> {
+            String content = noteEditText.getText().toString().trim();
+            if (content.isEmpty()) {
+                Toast.makeText(this, "Please write something before saving", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            boolean success;
+            if (noteId == -1) {
+                // New note → save for current user
+                success = dbHelper.saveNote(content, selectedColor, username);
+            } else {
+                // UPDATE THE EXISTING NOTE
+                success = dbHelper.updateNote(noteId, content, selectedColor);
+            }
+
+            if (success) {
+                Toast.makeText(this, "Note saved!", Toast.LENGTH_SHORT).show();
+                finish();
+            } else {
+                Toast.makeText(this, "Failed to save note", Toast.LENGTH_SHORT).show();
+            }
+        });
+// COLOR BUTTON CHANGER FOR AVAILABLE OR LIMITED COLORS ONLY
+        changeColorButton.setOnClickListener(v -> {
+            if (selectedColor == Color.WHITE) selectedColor = Color.YELLOW;
+            else if (selectedColor == Color.YELLOW) selectedColor = Color.CYAN;
+            else if (selectedColor == Color.CYAN) selectedColor = Color.MAGENTA;
+            else selectedColor = Color.WHITE;
+            noteEditText.setBackgroundColor(selectedColor);
+        });
+    }
+}
+
